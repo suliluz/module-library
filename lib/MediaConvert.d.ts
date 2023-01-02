@@ -3,15 +3,17 @@
 import fs from "fs";
 import { EventEmitter } from "events";
 export declare class MediaConvert {
+    private _id;
     private _filePath;
     private _outputPath;
-    private _convertEvent;
+    private readonly _convertEvent;
     /**
      * MediaConvert instance
+     * @param id - An identifier. This will help with follow-back actions.
      * @param filePath - The absolute path of the original file
      * @param outputPath - The absolute path for the intended output file
      */
-    constructor(filePath: string, outputPath: string);
+    constructor(id: string, filePath: string, outputPath: string);
     /**
      * Gets the stats of the original file (err if not exists)
      */
@@ -30,6 +32,13 @@ export declare class MediaConvert {
      * @param quality - The desired level of quality of the output. Lower is better but takes a longer time and higher file size. Defaults to 28.
      */
     convertWebM(quality?: number): Promise<EventEmitter>;
+    /**
+     * Converts video to the desired format. This doesn't transcode video, rather it copies the video into the intended video container.
+     * @param extension - the desired format extension (exclude . )
+     */
+    convertOriginalVideo(extension: string): Promise<unknown>;
+    getVideoInfo(): Promise<any>;
+    disconnect(): void;
     private getCompletionStats;
     get filePath(): string;
     set filePath(value: string);

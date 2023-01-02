@@ -34,6 +34,9 @@ job.on("info", (output) => {
 job.once("done", (info) => {
     console.log(info);
 })
+
+// Make sure to remove all listeners to avoid leaks
+media.disconnect();
 ```
 
 2. Convert an image with quality of 95%
@@ -54,5 +57,8 @@ job.on("error", (error) => {
 job.once("done", (info) => {
     console.log(info);
 })
+
+// Make sure to remove all listeners to avoid leaks
+media.disconnect();
 ```
         

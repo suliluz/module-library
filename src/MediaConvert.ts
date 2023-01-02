@@ -4,18 +4,19 @@ import {ChildProcessWithoutNullStreams, spawn} from "child_process";
 import {EventEmitter} from "events";
 
 export class MediaConvert {
-
+    private _id: string;
     private _filePath: string;
     private _outputPath: string;
-
-    private _convertEvent: EventEmitter;
+    private readonly _convertEvent: EventEmitter;
     /**
      * MediaConvert instance
+     * @param id - An identifier. This will help with follow-back actions.
      * @param filePath - The absolute path of the original file
      * @param outputPath - The absolute path for the intended output file
      */
-    constructor(filePath: string, outputPath: string) {
+    constructor(id: string, filePath: string, outputPath: string) {
         try {
+            this._id = id;
             this._filePath = path.resolve(filePath);
             this._outputPath = path.resolve(`${outputPath}`);
 
@@ -61,35 +62,39 @@ export class MediaConvert {
         return new Promise((resolve, reject) => {
             try {
                 let child = spawn('magick', [
+                    "convert",
                     this._filePath,
                     "-monitor",
                     "-quality", `${quality}`,
                     this._outputPath
                 ]);
 
-                child.stdout.setEncoding("utf-8");
-
-                child.stdout.on("data", (chunk) => {
-                    let output = chunk.toString();
-                    this._convertEvent.emit("info", output);
-                });
-
-                child.stdout.once("close", async () => {
-                    let result = await this.getCompletionStats();
-                    this._convertEvent.emit("done", result);
-                });
+                // Imagemagick returns output in stderr pipe
 
                 child.stderr.setEncoding("utf-8");
 
-                let errorMessageOutput = "";
-
                 child.stderr.on("data", (chunk) => {
-                    let output = chunk.toString();
-                    errorMessageOutput += output;
+                    // Split to get relevant items
+                    let output = (chunk.toString()).split(" ");
+
+                    if(output[0].includes("Save/Image/")) {
+                        // Percentage at index 4
+                        let percentage = parseFloat(output[4].replace("%", ""));
+
+                        let result = {
+                            id: this._id,
+                            filePath: this._filePath,
+                            outputPath: this._outputPath,
+                            progress: percentage
+                        }
+
+                        this._convertEvent.emit("info", result);
+                    }
                 });
 
-                child.stderr.once("close", () => {
-                    this._convertEvent.emit("error", errorMessageOutput);
+                child.stderr.once("close", async () => {
+                    let result = await this.getCompletionStats();
+                    this._convertEvent.emit("done", result);
                 });
 
                 return resolve(this._convertEvent);
@@ -106,9 +111,10 @@ export class MediaConvert {
     public async convertWebM(quality: number = 28): Promise<EventEmitter> {
         this._outputPath = `${this.outputPath}.webm`;
 
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             try {
-                let instance = this;
+                // Get duration of original
+                let originalVideoInfo = await this.getVideoInfo();
 
                 let child = spawn('ffmpeg', [
                     '-i',
@@ -120,13 +126,44 @@ export class MediaConvert {
                     this._outputPath
                 ]);
 
-                // Somehow, ffmpeg returns message in stderr pipe
-
+                // ffmpeg also returns message in stderr pipe
                 child.stderr.setEncoding("utf-8");
 
                 child.stderr.on("data", (chunk) => {
                     let output = chunk.toString();
-                    this._convertEvent.emit("info", output);
+
+                    // Split output as array
+                    let dataArray = output.split(" ");
+
+                    // Find a string with "time="
+                    let durationData = dataArray.find((data: string) => data.includes("time="));
+
+                    // If it exists
+                    if(durationData) {
+                        // With duration extracted, split with ":", h:m:s.ms, calculate accordingly into seconds
+                        let durationArray = durationData
+                            .replace("time=", "")
+                            .split(":");
+
+                        let duration = (parseInt(durationArray[0]) * 3600) + (parseInt(durationArray[1]) * 60) + parseFloat(durationArray[2]);
+
+                        // Percentage of completion - (duration / originalDuration) * 100
+                        let percentageCompleted = ((duration / parseFloat(originalVideoInfo.duration)) * 100).toFixed(1);
+
+                        this._convertEvent.emit("info", {
+                            id: this._id,
+                            filePath: this._filePath,
+                            outputPath: this._outputPath,
+                            progress: percentageCompleted
+                        });
+                    } else {
+                        this._convertEvent.emit("info", {
+                            id: this._id,
+                            filePath: this._filePath,
+                            outputPath: this._outputPath,
+                            progress: "0.0"
+                        });
+                    }
                 });
 
                 child.stderr.once("close", async () => {
@@ -141,6 +178,86 @@ export class MediaConvert {
         });
     }
 
+    /**
+     * Converts video to the desired format. This doesn't transcode video, rather it copies the video into the intended video container.
+     * @param extension - the desired format extension (exclude . )
+     */
+    public async convertOriginalVideo(extension: string) {
+        this._outputPath = `${this.outputPath}.${extension}`;
+
+        return new Promise((resolve, reject) => {
+            try {
+                let child = spawn('ffmpeg', [
+                    '-i',
+                    this.filePath,
+                    "-c", "copy",
+                    this._outputPath
+                ]);
+
+                // ffmpeg also returns message in stderr pipe
+                child.stderr.setEncoding("utf-8");
+
+                // No progress needed, "data" and "info" listener is opted out
+
+                child.stderr.once("close", async () => {
+                    let result = await this.getCompletionStats();
+                    this._convertEvent.emit("done", result);
+                });
+
+                return resolve(this._convertEvent);
+            } catch (e) {
+                return reject(e);
+            }
+        })
+    }
+
+    public async getVideoInfo(): Promise<any> {
+        return new Promise((resolve, reject) => {
+            try {
+                let child = spawn("ffprobe", [
+                    "-show_format",
+                    this._filePath
+                ]);
+
+                // In this case, ffprobe returns the relevant output  in stdout pipe
+
+                child.stdout.setEncoding("utf-8");
+
+                let message = "";
+
+                child.stdout.on("data", (chunk) => {
+                    message += chunk.toString();
+                });
+
+                child.stdout.once("close", () => {
+                    // Message contains data starting from index 1
+                    let object = {};
+
+                    // Split and get relevant data
+                    let items = message.split("\n");
+
+                    items.forEach((item) => {
+                        // Take all except headers and empty string if any
+                        if(!(item.includes("[FORMAT]") || item.includes("[/FORMAT]") || (item === ""))) {
+                            let keyValue = item.split("=");
+
+                            // Assign into object
+                            Object.assign(object, {[`${keyValue[0]}`]: keyValue[1]});
+                        }
+                    });
+
+                    return resolve(object);
+                })
+            } catch (e) {
+                return reject(e);
+            }
+        });
+    }
+
+    public disconnect() {
+        this._convertEvent.removeAllListeners();
+    }
+
     private async getCompletionStats() {
         try {
             let originalFileSize = (await this.getOriginalStats()).size;
@@ -148,7 +265,7 @@ export class MediaConvert {
 
             let ratio = (((originalFileSize - convertedFileSize) / originalFileSize) * 100).toFixed(1);
 
-            return {originalFileSize, convertedFileSize, compressionRatio: ratio};
+            return {id: this._id, originalFileSize, convertedFileSize, compressionRatio: parseFloat(ratio)};
         } catch (e) {
             return e;
         }
