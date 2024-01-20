@@ -17,7 +17,7 @@
   "dependencies": {
     "elliptic": "^6.5.4",
     "file-type-checker": "^1.0.8",
-    "jimp": "^0.22.10",
+    "jimp": "^0.3.5",
     "ws": "^8.16.0"
   }
 }
