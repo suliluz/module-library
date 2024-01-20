@@ -1,3 +1,6 @@
 playground.js
 node_modules
 .idea
+/scripts/ffmpeg/
+/scripts/ImageMagick/
+/scripts/SVT-AV1/

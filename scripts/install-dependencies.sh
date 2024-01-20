@@ -33,3 +33,9 @@ sudo make install
 
 # Load symlinks
 sudo ldconfig /usr/local/lib
+
+# Clean up
+cd ..
+rm -rf SVT-AV1
+rm -rf ffmpeg
+rm -rf ImageMagick

@@ -1,10 +1,12 @@
 import path from "path";
 import fs from "fs";
-import {ChildProcessWithoutNullStreams, spawn} from "child_process";
+import {spawn} from "child_process";
 import {EventEmitter} from "events";
+import FileTypeChecker from "file-type-checker";
+import {DetectedFileInfo} from "file-type-checker/dist/core";
 
 export class MediaConvert {
-    private _id: string;
+    private readonly _id: string;
     private _filePath: string;
     private _outputPath: string;
     private readonly _convertEvent: EventEmitter;
@@ -27,6 +29,27 @@ export class MediaConvert {
     }
 
     /**
+     * Gets the file info by their magic number.
+     * Rejects if file type is unknown and recommended to not proceed further,
+     * because why would you still want to process it anyway?
+     */
+    public async getFileInfo(): Promise<DetectedFileInfo> {
+        return new Promise((resolve, reject) => {
+            try {
+                let file = fs.readFileSync(this._filePath);
+
+                let type = FileTypeChecker.detectFile(file);
+
+                if(type === undefined) return reject("File type is unknown.");
+
+                return resolve(type);
+            } catch (e) {
+                return reject(e);
+            }
+        });
+    }
+
+    /***
      * Gets the stats of the original file (err if not exists)
      */
     public async getOriginalStats(): Promise<fs.Stats> {
@@ -39,7 +62,7 @@ export class MediaConvert {
         });
     }
 
-    /**
+    /***
      * Gets the stats of the converted file (err if not exists)
      */
     public async getConvertedStats(): Promise<fs.Stats> {
@@ -52,7 +75,7 @@ export class MediaConvert {
         });
     }
 
-    /**
+    /***
      * Converts set image in path to WebP format
      * @param quality - The desired level of quality of the output. More is better but may take a longer time and higher file size. Defaults to 95.
      */
@@ -104,7 +127,7 @@ export class MediaConvert {
         });
     }
 
-    /**
+    /***
      * Converts set video in path to WebM format
      * @param quality - The desired level of quality of the output. Lower is better but takes a longer time and higher file size. Defaults to 28.
      */
@@ -178,7 +201,7 @@ export class MediaConvert {
         });
     }
 
-    /**
+    /***
      * Converts video to the desired format. This doesn't transcode video, rather it copies the video into the intended video container.
      * @param extension - the desired format extension (exclude . )
      */
@@ -211,6 +234,9 @@ export class MediaConvert {
         })
     }
 
+    /***
+     * Specific to video and gets the video info using ffprobe
+     */
     public async getVideoInfo(): Promise<any> {
         return new Promise((resolve, reject) => {
             try {
@@ -254,16 +280,22 @@ export class MediaConvert {
         });
     }
 
+    /***
+     * Disconnects the event listener. Recommended to call this after done to prevent leaks.
+     */
     public disconnect() {
         this._convertEvent.removeAllListeners();
     }
 
+    /***
+     * Gets the completion stats of the conversion
+     */
     private async getCompletionStats() {
         try {
             let originalFileSize = (await this.getOriginalStats()).size;
             let convertedFileSize = (await this.getConvertedStats()).size;
 
-            let ratio = (((originalFileSize - convertedFileSize) / originalFileSize) * 100).toFixed(1);
+            let ratio = (((originalFileSize - convertedFileSize) / originalFileSize) * 100).toFixed(3);
 
             return {id: this._id, originalFileSize, convertedFileSize, compressionRatio: parseFloat(ratio)};
         } catch (e) {
