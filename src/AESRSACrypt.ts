@@ -133,7 +133,7 @@ class AESRSACrypt implements IAESECCrypt {
                 const AESKey = crypto.randomBytes(32);
                 const iv = crypto.randomBytes(16);
 
-                const cipher = crypto.createCipheriv("aes-256-ccm", AESKey, iv);
+                const cipher = crypto.createCipheriv("aes-256-gcm", AESKey, iv);
 
                 let encrypted = cipher.update(stringPayload, 'utf-8', 'hex');
                 encrypted += cipher.final('hex');

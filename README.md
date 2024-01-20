@@ -64,7 +64,7 @@ media.disconnect();
 
 ### AESRSACrypt (Encryption/Decryption)
 
-A module that uses AES-256-CCM and RSA3072 combined to encrypt and decrypt data (AES-RSA).
+A module that uses AES-256-GCM and RSA3072 combined to encrypt and decrypt data (AES-RSA).
 
 ##### Usage:
 
