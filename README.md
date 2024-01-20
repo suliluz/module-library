@@ -124,8 +124,8 @@ let encryptedData = {
 }
 
 crypt.decrypt(encryptedData).then((decryptedData) => {
-        console.log("Decrypted Data:", decryptedData);
-    }).catch((err) => {
-        console.error("Error decrypting data:", err.message);
-    });
+    console.log("Decrypted Data:", decryptedData);
+}).catch((err) => {
+    console.error("Error decrypting data:", err.message);
+});
 ```
