@@ -4,7 +4,8 @@ import * as crypto from "crypto";
 export interface IAESRSAEncryptedObject {
     body: string,
     key: string,
-    iv: string
+    iv: string,
+    authTag: string
 }
 interface IAESECCrypt {
     updatePrivateKey: () => Promise<boolean>
@@ -13,7 +14,7 @@ interface IAESECCrypt {
     decrypt: ({body, key, iv}: IAESRSAEncryptedObject) => Promise<string>
 }
 
-class AESRSACrypt implements IAESECCrypt {
+export class AESRSACrypt implements IAESECCrypt {
     private readonly keyPath: string;
     private readonly create: boolean;
 
@@ -61,11 +62,11 @@ class AESRSACrypt implements IAESECCrypt {
         })
     }
 
-    private async createPrivateKey(): Promise<boolean> {
+    private async createPrivateKey(): Promise<unknown> {
         return new Promise((resolve, reject) => {
             try {
                 // Create key pair
-                const keyPair = crypto.generateKeyPairSync("rsa", {
+                crypto.generateKeyPair("rsa", {
                     modulusLength: 3072,
                     publicKeyEncoding: {
                         type: "spki",
@@ -75,15 +76,15 @@ class AESRSACrypt implements IAESECCrypt {
                         type: "pkcs8",
                         format: "pem",
                     }
+                }, (err, publicKey, privateKey) => {
+                    if(err) return reject(err);
+
+                    fs.writeFile(this.keyPath, privateKey, "utf-8", (err) => {
+                        if (err) return reject(err);
+
+                        return resolve(true);
+                    });
                 })
-
-                let privateKey = keyPair.privateKey;
-
-                fs.writeFile(this.keyPath, privateKey, "utf-8", (err) => {
-                    if (err) return reject(err);
-
-                    return resolve(true);
-                });
             } catch (e) {
                 return reject(e);
             }
@@ -138,6 +139,8 @@ class AESRSACrypt implements IAESECCrypt {
                 let encrypted = cipher.update(stringPayload, 'utf-8', 'hex');
                 encrypted += cipher.final('hex');
 
+                const authTag = cipher.getAuthTag();
+
                 // Step 2: Encrypt AES Key with RSA Public Key
                 let publicKey = crypto.createPublicKey(await this.createPublicKey());
                 let encryptedPublicKey = crypto.publicEncrypt(publicKey, AESKey);
@@ -146,7 +149,8 @@ class AESRSACrypt implements IAESECCrypt {
                 return resolve({
                     body: encrypted,
                     key: encryptedPublicKey.toString("hex"),
-                    iv: iv.toString("hex")
+                    iv: iv.toString("hex"),
+                    authTag: authTag.toString("hex")
                 })
             } catch (e) {
                 return reject(e);
@@ -154,7 +158,7 @@ class AESRSACrypt implements IAESECCrypt {
         });
     }
 
-    public async decrypt({body, key, iv}: IAESRSAEncryptedObject): Promise<string> {
+    public async decrypt({body, key, iv, authTag}: IAESRSAEncryptedObject): Promise<string> {
         return new Promise((resolve, reject) => {
             try {
                 // Step 1: RSA Decryption on key
@@ -164,7 +168,10 @@ class AESRSACrypt implements IAESECCrypt {
                 let decryptedKey = crypto.privateDecrypt(privateKey, Buffer.from(key, "hex"));
 
                 // Step 2: Use obtained AES Key to decrypt body
-                let decipher = crypto.createDecipheriv("aes-256-ccm", decryptedKey, Buffer.from(iv, "hex"));
+                let decipher = crypto.createDecipheriv("aes-256-gcm", decryptedKey, Buffer.from(iv, "hex"));
+
+                // Set auth tag
+                decipher.setAuthTag(Buffer.from(authTag, "hex"));
 
                 let decrypted = decipher.update(body, "hex", "utf-8");
                 decrypted += decipher.final("utf-8");
