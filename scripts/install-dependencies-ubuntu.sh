@@ -64,7 +64,7 @@ git clone --recurse-submodules https://git.ffmpeg.org/ffmpeg.git
 cd ffmpeg
 export LD_LIBRARY_PATH+=":/usr/local"
 export PKG_CONFIG_PATH+=":/usr/local/pkgconfig"
-./configure --enable-libdav1d --enable-libsvtav1 --enable-libaom --enable-libopus
+./configure --enable-libdav1d --enable-libsvtav1 --enable-libaom --enable-libopus --enable-gpl --enable-nonfree
 make -j $(nproc)
 sudo make install
 cd ..
@@ -72,7 +72,7 @@ cd ..
 # Install imagemagick
 git clone --recurse-submodules https://github.com/ImageMagick/ImageMagick.git
 cd ImageMagick
-./configure
+./configure --with-modules --with-perl
 make -j $(nproc)
 sudo make install
 
