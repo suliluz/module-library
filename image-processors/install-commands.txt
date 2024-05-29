@@ -1,0 +1,5 @@
+Alpine
+apk add python3 py3-pip gcc g++ python3-dev musl-dev libjpeg-turbo-dev zlib-dev lib-png-dev libressl-dev && pip3 install bumpy Pillow pycryptodome
+
+Ubuntu
+sudo apt update && sudo apt install python3 python3-pip build-essential python3-dev libjpeg-dev zblib1g-dev libpng-dev libssl-dev && pip3 install numpy Pillow pycryptodome
