@@ -3,7 +3,15 @@
 # Update package index
 sudo apt-get update
 
-# Install dependencies
+# Attempt to install from packages first (recommended)
+if sudo apt-get install -y ffmpeg libavcodec-extra libsvtav1 imagemagick; then
+    echo "Successfully installed FFmpeg, libsvtav1, and ImageMagick from packages."
+    exit 0
+else
+    echo "Some packages not found, proceeding to build from source."
+fi
+
+# Install dependencies for building from source
 sudo apt-get -y install \
     git \
     autoconf \
@@ -40,7 +48,6 @@ sudo apt-get -y install \
     g++ \
     python3-dev \
     libjpeg-turbo8-dev \
-    zlib1g-dev \
     libpng-dev \
     libssl-dev
 
@@ -55,8 +62,8 @@ cd ../..
 # Install ffmpeg
 git clone --recurse-submodules https://git.ffmpeg.org/ffmpeg.git
 cd ffmpeg
-export LD_LIBRARY_PATH+=":/usr/local/lib"
-export PKG_CONFIG_PATH+=":/usr/local/lib/pkgconfig"
+export LD_LIBRARY_PATH+=":/usr/local"
+export PKG_CONFIG_PATH+=":/usr/local/pkgconfig"
 ./configure --enable-libdav1d --enable-libsvtav1 --enable-libaom --enable-libopus
 make -j $(nproc)
 sudo make install
@@ -70,7 +77,7 @@ make -j $(nproc)
 sudo make install
 
 # Load symlinks
-sudo ldconfig /usr/local/lib
+sudo ldconfig /usr/local
 
 # Clean up
 cd ..

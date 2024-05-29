@@ -5,47 +5,42 @@ sudo apk update
 
 # Install dependencies
 sudo apk add --no-cache \
-    git \
     autoconf \
     automake \
     build-base \
     cmake \
-    libass-dev \
     freetype-dev \
+    git \
     gnutls-dev \
     lame-dev \
-    sdl2-dev \
+    libass-dev \
     libtool \
     libva-dev \
-    vdpau-dev \
     libvorbis-dev \
-    xcb-dev \
-    xcb-shm-dev \
-    xcb-util-fixes-dev \
+    libwebp-dev \
     meson \
     ninja \
     pkgconfig \
-    texinfo \
-    wget \
-    yasm \
-    zlib-dev \
-    libunistring-dev \
-    aom-dev \
-    dav1d-dev \
-    opus-dev \
-    libwebp-dev \
     python3 \
     py3-pip \
-    gcc \
-    g++ \
-    python3-dev \
-    musl-dev \
-    libjpeg-turbo-dev \
+    sdl2-dev \
+    texinfo \
+    wget \
+    xcb-dev \
+    xcb-shm-dev \
+    xcb-util-fixes-dev \
+    yasm \
     zlib-dev \
+    aom-dev \
+    dav1d-dev \
+    jpeg-dev \
     libpng-dev \
-    libressl-dev
+    libunistring-dev \
+    musl-dev \
+    opus-dev \
+    lcms2-dev
 
-# Install libsvtav1 dependency for ffmpeg
+# Install libsvtav1 (for FFmpeg)
 git clone --recurse-submodules https://gitlab.com/AOMediaCodec/SVT-AV1.git
 cd SVT-AV1/Build
 cmake .. -G"Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
@@ -53,23 +48,16 @@ make -j$(nproc)
 sudo make install
 cd ../..
 
-# Install ffmpeg
+# Install FFmpeg
 git clone --recurse-submodules https://git.ffmpeg.org/ffmpeg.git
 cd ffmpeg
-./configure --enable-libdav1d --enable-libsvtav1 --enable-libaom --enable-libopus
+./configure --prefix=/usr/local --enable-libdav1d --enable-libsvtav1 --enable-libaom --enable-libopus --enable-gpl
 make -j$(nproc)
 sudo make install
 cd ..
 
-# Install imagemagick
-git clone --recurse-submodules https://github.com/ImageMagick/ImageMagick.git
-cd ImageMagick
-./configure
-make -j$(nproc)
-sudo make install
+sudo apk add imagemagick
 
 # Clean up
-cd ..
-rm -rf SVT-AV1
-rm -rf ffmpeg
-rm -rf ImageMagick
+rm -rf SVT-AV1 ffmpeg
+
