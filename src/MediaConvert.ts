@@ -140,14 +140,15 @@ export class MediaConvert {
                 let originalVideoInfo = await this.getVideoInfo();
 
                 let child = spawn('ffmpeg', [
-                    '-i',
-                    this.filePath,
-                    "-c:v", "libsvtav1",
-                    "-b:v", "0",
-                    "-c:a", "libopus",
-                    "-crf", `${quality}`,
+                    '-i', this.filePath,                    // Input file
+                    '-c:v', 'libsvtav1',                    // AV1 video codec
+                    '-b:v', '0',                            // Constant quality mode (recommended with -crf)
+                    '-crf', `${quality}`,                   // CRF value (lower is higher quality, typically 18-28)
+                    '-preset', '6',                         // Encoding speed preset (0 is slowest, 10 is fastest)
+                    '-c:a', 'libopus',                      // Opus audio codec
                     this._outputPath
                 ]);
+
 
                 // ffmpeg also returns message in stderr pipe
                 child.stderr.setEncoding("utf-8");
